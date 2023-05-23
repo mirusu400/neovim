@@ -9,22 +9,22 @@ msgstr ""
 "Project-Id-Version: vim 7.3\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2014-05-26 14:21+0200\n"
-"PO-Revision-Date: 2010-02-18 09:49+0900\n"
-"Last-Translator: SungHyun Nam <goweol@gmail.com>\n"
+"PO-Revision-Date: 2023-05-23 16:31+0900\n"
+"Last-Translator: SeongJin Kim <mirusu400@naver.com>\n"
 "Language-Team: GTP Korean <gnome-kr-translation@gnome.or.kr>\n"
-"Language: \n"
+"Language: ko\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.3.1\n"
 
 #: ../api/private/helpers.c:201
-#, fuzzy
 msgid "Unable to get option value"
-msgstr "옵션 인자 뒤에 쓰레기 값"
+msgstr "옵션 값을 가져올 수 없습니다"
 
 #: ../api/private/helpers.c:204
 msgid "internal error: unknown option type"
-msgstr ""
+msgstr "내부 오류: 알 수 없는 옵션 유형"
 
 #: ../buffer.c:92
 msgid "[Location List]"
@@ -35,9 +35,8 @@ msgid "[Quickfix List]"
 msgstr "[Quickfix 목록]"
 
 #: ../buffer.c:94
-#, fuzzy
 msgid "E855: Autocommands caused command to abort"
-msgstr "E812: Autocommand가 버퍼나 버퍼이름을 바꾸었습니다"
+msgstr "E855: Autocommand로 인해 명령이 중단되었습니다"
 
 #: ../buffer.c:135
 msgid "E82: Cannot allocate any buffer, exiting..."
@@ -466,17 +465,17 @@ msgstr "match %d"
 
 #: ../eval.c:137
 msgid "E18: Unexpected characters in :let"
-msgstr "E18: ':let'에 모르는 글자"
+msgstr "E18: ':let'에 예기치 않은 문자가 있습니다"
 
 #: ../eval.c:138
 #, c-format
 msgid "E684: list index out of range: %<PRId64>"
-msgstr "E684: 목록 번호가 범위를 벗어남: %<PRId64>"
+msgstr "E684: 목록 번호가 범위를 벗어났습니다: %<PRId64>"
 
 #: ../eval.c:139
 #, c-format
 msgid "E121: Undefined variable: %s"
-msgstr "E121: 정의 안 된 변수: %s"
+msgstr "E121: 미정의된 변수가 존재합니다: %s"
 
 #: ../eval.c:140
 msgid "E111: Missing ']'"
@@ -507,12 +506,12 @@ msgstr "E715: Dictionary가 필요합니다"
 #: ../eval.c:147
 #, c-format
 msgid "E118: Too many arguments for function: %s"
-msgstr "E118: 함수에 너무 많은 인자 넘김: %s"
+msgstr "E118: 함수에 너무 많은 인자가 전달되었습니다: %s"
 
 #: ../eval.c:148
 #, c-format
 msgid "E716: Key not present in Dictionary: %s"
-msgstr "E716: Dictionary에 키가 없음: %s"
+msgstr "E716: Dictionary에 키가 없습니다: %s"
 
 #: ../eval.c:150
 #, c-format
@@ -534,7 +533,7 @@ msgstr "E719: Dictionary에 [:]을 사용할 수 없습니다"
 #: ../eval.c:154
 #, c-format
 msgid "E734: Wrong variable type for %s="
-msgstr "E734: %s=에 대한 잘못된 변수형"
+msgstr "E734: %s=에 대한 잘못된 변수형이 존재합니다"
 
 #: ../eval.c:155
 #, c-format
@@ -548,7 +547,7 @@ msgstr "E461: 비정상적인 변수 명: %s"
 
 #: ../eval.c:157
 msgid "E806: using Float as a String"
-msgstr "E806: Float를 String으로 사용"
+msgstr "E806: Float를 String으로 사용했습니다"
 
 #: ../eval.c:1830
 msgid "E687: Less targets than List items"
@@ -734,9 +733,8 @@ msgid "E808: Number or Float required"
 msgstr "E808: Number 혹은 Float가 필요합니다"
 
 #: ../eval.c:7503
-#, fuzzy
 msgid "add() argument"
-msgstr "-c 인자"
+msgstr "add() 인자"
 
 #: ../eval.c:7907
 msgid "E699: Too many arguments"
@@ -756,19 +754,16 @@ msgid "E737: Key already exists: %s"
 msgstr "E737: 키가 이미 존재함: %s"
 
 #: ../eval.c:8692
-#, fuzzy
 msgid "extend() argument"
-msgstr "--cmd 인자"
+msgstr "extend() 인자"
 
 #: ../eval.c:8915
-#, fuzzy
 msgid "map() argument"
-msgstr "-c 인자"
+msgstr "map() 인자"
 
 #: ../eval.c:8916
-#, fuzzy
 msgid "filter() argument"
-msgstr "-c 인자"
+msgstr "filter() 인자"
 
 #: ../eval.c:9229
 #, c-format
@@ -785,9 +780,8 @@ msgid "called inputrestore() more often than inputsave()"
 msgstr "inputrestore()가 inputsave()보다 많이 불려졌습니다"
 
 #: ../eval.c:10771
-#, fuzzy
 msgid "insert() argument"
-msgstr "-c 인자"
+msgstr "insert() 인자"
 
 #: ../eval.c:10841
 msgid "E786: Range not allowed"
@@ -810,37 +804,32 @@ msgid "<empty>"
 msgstr "<비어있음>"
 
 #: ../eval.c:12282
-#, fuzzy
 msgid "remove() argument"
-msgstr "--cmd 인자"
+msgstr "remove() 인자"
 
 #: ../eval.c:12466
 msgid "E655: Too many symbolic links (cycle?)"
 msgstr "E655: 너무 많은 심볼릭 링크 (반복순환?)"
 
 #: ../eval.c:12593
-#, fuzzy
 msgid "reverse() argument"
-msgstr "-c 인자"
+msgstr "reverse() 인자"
 
 #: ../eval.c:13721
-#, fuzzy
 msgid "sort() argument"
-msgstr "-c 인자"
+msgstr "sort() 인자"
 
 #: ../eval.c:13721
-#, fuzzy
 msgid "uniq() argument"
-msgstr "-c 인자"
+msgstr "uniq() 인자"
 
 #: ../eval.c:13776
 msgid "E702: Sort compare function failed"
 msgstr "E702: 정렬 비교 기능이 실패했습니다"
 
 #: ../eval.c:13806
-#, fuzzy
 msgid "E882: Uniq compare function failed"
-msgstr "E702: 정렬 비교 기능이 실패했습니다"
+msgstr "E702: 유니크 비교 기능이 실패했습니다"
 
 #: ../eval.c:14085
 msgid "(Invalid)"
@@ -905,7 +894,7 @@ msgstr "E741: 값이 잠겨있음: %s"
 
 #: ../eval.c:16764 ../eval.c:16769 ../message.c:1839
 msgid "Unknown"
-msgstr "모름"
+msgstr "알 수 없음"
 
 #: ../eval.c:16768
 #, c-format
@@ -927,9 +916,8 @@ msgid "E124: Missing '(': %s"
 msgstr "E124: '('가 없음: %s"
 
 #: ../eval.c:17293
-#, fuzzy
 msgid "E862: Cannot use g: here"
-msgstr "E284: IC 값을 설정할 수 없습니다"
+msgstr "E862: 여기에서 :g를 사용할 수 없음"
 
 #: ../eval.c:17312
 #, c-format
@@ -937,9 +925,9 @@ msgid "E125: Illegal argument: %s"
 msgstr "E125: 잘못된 인자: %s"
 
 #: ../eval.c:17323
-#, fuzzy, c-format
+#, c-format
 msgid "E853: Duplicate argument name: %s"
-msgstr "중복된 필드 명: %s"
+msgstr "E853: 중복된 필드 명: %s"
 
 #: ../eval.c:17416
 msgid "E126: Missing :endfunction"
@@ -953,7 +941,7 @@ msgstr "E707: 함수명이 변수명과 충돌: %s"
 #: ../eval.c:17549
 #, c-format
 msgid "E127: Cannot redefine function %s: It is in use"
-msgstr "E127: 함수 %s을(를) 다시 정의할 수 없습니다: 사용중입니다"
+msgstr "E127: 함수 %s을(를) 다시 정의할 수 없음: 이미 사용 중"
 
 #: ../eval.c:17604
 #, c-format
@@ -962,26 +950,26 @@ msgstr "E746: 함수명이 스크립트 파일명과 다름: %s"
 
 #: ../eval.c:17716
 msgid "E129: Function name required"
-msgstr "E129: 함수 이름이 필요합니다"
+msgstr "E129: 함수 이름이 필요함"
 
 #: ../eval.c:17824
-#, fuzzy, c-format
+#, c-format
 msgid "E128: Function name must start with a capital or \"s:\": %s"
-msgstr "E128: 함수 이름은 대문자로 시작하거나 콜론을 포함해야 함: %s"
+msgstr "E128: 함수 이름은 대문자 혹은 s:로 시작해야 함: %s"
 
 #: ../eval.c:17833
-#, fuzzy, c-format
+#, c-format
 msgid "E884: Function name cannot contain a colon: %s"
-msgstr "E128: 함수 이름은 대문자로 시작하거나 콜론을 포함해야 함: %s"
+msgstr "E128: 함수 이름은 콜론을 포함할 수 없음: %s"
 
 #: ../eval.c:18336
 #, c-format
 msgid "E131: Cannot delete function %s: It is in use"
-msgstr "E131: 함수 %s을(를) 지울 수 없습니다: 사용중입니다"
+msgstr "E131: 함수 %s을(를) 지울 수 없음: 이미 사용 중"
 
 #: ../eval.c:18441
 msgid "E132: Function call depth is higher than 'maxfuncdepth'"
-msgstr "E132: 함수를 부른 깊이가 'maxfuncdepth'보다 큽니다"
+msgstr "E132: 함수를 부른 깊이가 'maxfuncdepth'보다 큼"
 
 #: ../eval.c:18568
 #, c-format
@@ -1010,7 +998,7 @@ msgstr "%s에서 계속"
 
 #: ../eval.c:18795
 msgid "E133: :return not inside a function"
-msgstr "E133: :return이 함수 안에 있지 않습니다"
+msgstr "E133: :return이 함수 안에 없음"
 
 #: ../eval.c:19159
 msgid ""
@@ -1049,7 +1037,7 @@ msgstr "> %d,  십육진 %08x,  팔진 %o"
 
 #: ../ex_cmds.c:684
 msgid "E134: Move lines into themselves"
-msgstr "E134: 줄을 그 자신으로 이동하려고 했습니다"
+msgstr "E134: 줄을 그 자신으로 이동하려고 함"
 
 #: ../ex_cmds.c:747
 msgid "1 line moved"
@@ -1067,7 +1055,7 @@ msgstr "%<PRId64> 줄을 걸렀습니다"
 
 #: ../ex_cmds.c:1194
 msgid "E135: *Filter* Autocommands must not change current buffer"
-msgstr "E135: *Filter* 자동명령은 현재 버퍼를 바꾸어서는 안 됩니다"
+msgstr "E135: *Filter* 자동명령은 현재 버퍼를 바꾸어서는 안 됨"
 
 #: ../ex_cmds.c:1244
 msgid "[No write since last change]\n"
@@ -1097,7 +1085,7 @@ msgstr " 마크"
 
 #: ../ex_cmds.c:1462
 msgid " oldfiles"
-msgstr ""
+msgstr " 오래된 파일"
 
 #: ../ex_cmds.c:1463
 msgid " FAILED"
@@ -1269,9 +1257,9 @@ msgid "Pattern found in every line: %s"
 msgstr "여러 줄에서 패턴을 찾았습니다: %s"
 
 #: ../ex_cmds.c:4510
-#, fuzzy, c-format
+#, c-format
 msgid "Pattern not found: %s"
-msgstr "패턴을 찾을 수 없습니다"
+msgstr "패턴을 찾을 수 없습니다: %s"
 
 #: ../ex_cmds.c:4587
 msgid ""
@@ -5465,14 +5453,14 @@ msgid "E765: 'spellfile' does not have %<PRId64> entries"
 msgstr "E765: 'spellfile'에 %<PRId64> 항목이 없습니다"
 
 #: ../spell.c:8074
-#, fuzzy, c-format
+#, c-format
 msgid "Word '%.*s' removed from %s"
-msgstr "%s에서 단어 삭제됨"
+msgstr "%s에서 단어 ‘%.*s’ 삭제됨"
 
 #: ../spell.c:8117
-#, fuzzy, c-format
+#, c-format
 msgid "Word '%.*s' added to %s"
-msgstr "%s에 단어 추가됨"
+msgstr "%s에 단어 ‘%.*s’ 추가됨"
 
 #: ../spell.c:8381
 msgid "E763: Word characters differ between spell files"
@@ -5480,12 +5468,12 @@ msgstr "E763: 단어가 spell 파일 간에 다릅니다"
 
 #: ../spell.c:8684
 msgid "Sorry, no suggestions"
-msgstr "죄송, 제안할 게 없습니다"
+msgstr "미안합니다, 제안할 게 없습니다"
 
 #: ../spell.c:8687
 #, c-format
 msgid "Sorry, only %<PRId64> suggestions"
-msgstr "죄송, %<PRId64>개만 제안"
+msgstr "미안합니다, %<PRId64>개만 제안합니다"
 
 #. for when 'cmdheight' > 1
 #. avoid more prompt
@@ -5636,9 +5624,8 @@ msgid "E397: Filename required"
 msgstr "E397: 파일이름이 필요합니다"
 
 #: ../syntax.c:4221
-#, fuzzy
 msgid "E847: Too many syntax includes"
-msgstr "E77: 파일 이름이 너무 많습니다"
+msgstr "E847: 포함되는 구문이 너무 많습니다"
 
 #: ../syntax.c:4303
 #, c-format
@@ -5656,9 +5643,8 @@ msgid "E399: Not enough arguments: syntax region %s"
 msgstr "E399: 충분치 않은 인자: 구문 영역 %s"
 
 #: ../syntax.c:4870
-#, fuzzy
 msgid "E848: Too many syntax clusters"
-msgstr "E391: 이런 구문 클러스터는 없습니다: %s"
+msgstr "E848: 구문 클러스터가 너무 많습니다"
 
 #: ../syntax.c:4954
 msgid "E400: No cluster specified"
