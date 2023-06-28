@@ -1355,11 +1355,13 @@ void aucmd_restbuf(aco_save_T *aco)
       }
     }
 win_found:
+    ;
+    const bool save_stop_insert_mode = stop_insert_mode;
     // May need to stop Insert mode if we were in a prompt buffer.
     leaving_window(curwin);
     // Do not stop Insert mode when already in Insert mode before.
     if (aco->save_State & MODE_INSERT) {
-      stop_insert_mode = false;
+      stop_insert_mode = save_stop_insert_mode;
     }
     // Remove the window.
     win_remove(curwin, NULL);
@@ -1601,6 +1603,7 @@ bool apply_autocmds_group(event_T event, char *fname, char *fname_io, bool force
 
   // Save the autocmd_* variables and info about the current buffer.
   char *save_autocmd_fname = autocmd_fname;
+  bool save_autocmd_fname_full = autocmd_fname_full;
   int save_autocmd_bufnr = autocmd_bufnr;
   char *save_autocmd_match = autocmd_match;
   int save_autocmd_busy = autocmd_busy;
@@ -1629,6 +1632,7 @@ bool apply_autocmds_group(event_T event, char *fname, char *fname_io, bool force
     // Allocate MAXPATHL for when eval_vars() resolves the fullpath.
     autocmd_fname = xstrnsave(autocmd_fname, MAXPATHL);
   }
+  autocmd_fname_full = false;  // call FullName_save() later
 
   // Set the buffer number to be used for <abuf>.
   autocmd_bufnr = buf == NULL ? 0 : buf->b_fnum;
@@ -1672,6 +1676,7 @@ bool apply_autocmds_group(event_T event, char *fname, char *fname_io, bool force
         || event == EVENT_USER || event == EVENT_WINCLOSED
         || event == EVENT_WINRESIZED || event == EVENT_WINSCROLLED) {
       fname = xstrdup(fname);
+      autocmd_fname_full = true;  // don't expand it later
     } else {
       fname = FullName_save(fname, false);
     }
@@ -1778,8 +1783,14 @@ bool apply_autocmds_group(event_T event, char *fname, char *fname_io, bool force
       check_lnums_nested(true);
     }
 
+    const int save_did_emsg = did_emsg;
+    const bool save_ex_pressedreturn = get_pressedreturn();
+
     // Execute the autocmd. The `getnextac` callback handles iteration.
-    do_cmdline(NULL, getnextac, (void *)&patcmd, DOCMD_NOWAIT | DOCMD_VERBOSE | DOCMD_REPEAT);
+    do_cmdline(NULL, getnextac, &patcmd, DOCMD_NOWAIT | DOCMD_VERBOSE | DOCMD_REPEAT);
+
+    did_emsg += save_did_emsg;
+    set_pressedreturn(save_ex_pressedreturn);
 
     if (nesting == 1) {
       // restore cursor and topline, unless they were changed
@@ -1804,6 +1815,7 @@ bool apply_autocmds_group(event_T event, char *fname, char *fname_io, bool force
   estack_pop();
   xfree(autocmd_fname);
   autocmd_fname = save_autocmd_fname;
+  autocmd_fname_full = save_autocmd_fname_full;
   autocmd_bufnr = save_autocmd_bufnr;
   autocmd_match = save_autocmd_match;
   current_sctx = save_current_sctx;

@@ -143,7 +143,7 @@ function LanguageTree:_set_logger()
 
   local lang = self:lang()
 
-  local logfilename = vim.fs._join_paths(vim.fn.stdpath('log'), 'treesitter.log')
+  local logfilename = vim.fs.joinpath(vim.fn.stdpath('log'), 'treesitter.log')
 
   local logfile, openerr = io.open(logfilename, 'a+')
 
@@ -170,11 +170,11 @@ end
 ---@param f fun(): R1, R2, R2
 ---@return integer, R1, R2, R3
 local function tcall(f, ...)
-  local start = vim.loop.hrtime()
+  local start = vim.uv.hrtime()
   ---@diagnostic disable-next-line
   local r = { f(...) }
   --- @type number
-  local duration = (vim.loop.hrtime() - start) / 1000000
+  local duration = (vim.uv.hrtime() - start) / 1000000
   return duration, unpack(r)
 end
 
@@ -447,6 +447,9 @@ end
 ---@private
 ---@param region Range6[]
 local function region_tostr(region)
+  if #region == 0 then
+    return '[]'
+  end
   local srow, scol = region[1][1], region[1][2]
   local erow, ecol = region[#region][4], region[#region][5]
   return string.format('[%d:%d-%d:%d]', srow, scol, erow, ecol)

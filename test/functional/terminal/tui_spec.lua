@@ -1554,7 +1554,7 @@ describe('TUI', function()
   end)
 
   it('no assert failure on deadly signal #21896', function()
-    exec_lua([[vim.loop.kill(vim.fn.jobpid(vim.bo.channel), 'sigterm')]])
+    exec_lua([[vim.uv.kill(vim.fn.jobpid(vim.bo.channel), 'sigterm')]])
     screen:expect({any = '%[Process exited 1%]'})
   end)
 
@@ -1605,7 +1605,7 @@ describe('TUI', function()
       foo                                               |
       {3:-- TERMINAL --}                                    |
     ]])
-    exec_lua([[vim.loop.kill(vim.fn.jobpid(vim.bo.channel), 'sigwinch')]])
+    exec_lua([[vim.uv.kill(vim.fn.jobpid(vim.bo.channel), 'sigwinch')]])
     screen:expect([[
       {1: }                                                 |
       {4:~                                                 }|
@@ -2475,7 +2475,7 @@ describe("TUI as a client", function()
 
     -- grid smaller than containing terminal window is cleared properly
     feed_data(":call setline(1,['a'->repeat(&columns)]->repeat(&lines))\n")
-    feed_data("0:set lines=2\n")
+    feed_data("0:set lines=3\n")
     screen_server:expect{grid=[[
       {1:a}aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|
       {5:[No Name] [+]                                     }|
@@ -2517,7 +2517,7 @@ describe("TUI as a client", function()
 
     -- No heap-use-after-free when receiving UI events after deadly signal #22184
     server:request('nvim_input', ('a'):rep(1000))
-    exec_lua([[vim.loop.kill(vim.fn.jobpid(vim.bo.channel), 'sigterm')]])
+    exec_lua([[vim.uv.kill(vim.fn.jobpid(vim.bo.channel), 'sigterm')]])
     screen:expect({any = '%[Process exited 1%]'})
 
     eq(0, meths.get_vvar('shell_error'))

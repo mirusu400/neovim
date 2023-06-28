@@ -341,7 +341,7 @@ static int nlua_init_argv(lua_State *const L, char **argv, int argc, int lua_arg
     lua_pushstring(L, argv[lua_arg0 - 1]);
     lua_rawseti(L, -2, 0);  // _G.arg[0] = "foo.lua"
 
-    for (; lua_arg0 >= 0 && i + lua_arg0 < argc; i++) {
+    for (; i + lua_arg0 < argc; i++) {
       lua_pushstring(L, argv[i + lua_arg0]);
       lua_rawseti(L, -2, i + 1);  // _G.arg[i+1] = "--foo"
     }
@@ -565,7 +565,7 @@ static void nlua_common_vim_init(lua_State *lstate, bool is_thread, bool is_stan
   lua_setfield(lstate, LUA_REGISTRYINDEX, "mpack.empty_dict");
   lua_setfield(lstate, -2, "_empty_dict_mt");
 
-  // vim.loop
+  // vim.uv
   if (is_standalone) {
     // do nothing, use libluv like in a standalone interpreter
   } else if (is_thread) {
@@ -578,9 +578,12 @@ static void nlua_common_vim_init(lua_State *lstate, bool is_thread, bool is_stan
   }
   luaopen_luv(lstate);
   lua_pushvalue(lstate, -1);
-  lua_setfield(lstate, -3, "loop");
+  lua_setfield(lstate, -3, "uv");
 
-  // package.loaded.luv = vim.loop
+  lua_pushvalue(lstate, -1);
+  lua_setfield(lstate, -3, "loop");  // deprecated
+
+  // package.loaded.luv = vim.uv
   // otherwise luv will be reinitialized when require'luv'
   lua_getglobal(lstate, "package");
   lua_getfield(lstate, -1, "loaded");
@@ -1484,7 +1487,7 @@ int nlua_source_using_linegetter(LineGetter fgetline, void *cookie, char *name)
 
 /// Call a LuaCallable given some typvals
 ///
-/// Used to call any lua callable passed from Lua into VimL
+/// Used to call any Lua callable passed from Lua into Vimscript.
 ///
 /// @param[in]  lstate Lua State
 /// @param[in]  lua_cb Lua Callable
@@ -1619,7 +1622,7 @@ bool nlua_is_deferred_safe(void)
 ///
 /// Used for :lua.
 ///
-/// @param  eap  VimL command being run.
+/// @param  eap  Vimscript command being run.
 void ex_lua(exarg_T *const eap)
   FUNC_ATTR_NONNULL_ALL
 {
@@ -1651,7 +1654,7 @@ void ex_lua(exarg_T *const eap)
 ///
 /// Used for :luado.
 ///
-/// @param  eap  VimL command being run.
+/// @param  eap  Vimscript command being run.
 void ex_luado(exarg_T *const eap)
   FUNC_ATTR_NONNULL_ALL
 {
@@ -1732,7 +1735,7 @@ void ex_luado(exarg_T *const eap)
 ///
 /// Used for :luafile.
 ///
-/// @param  eap  VimL command being run.
+/// @param  eap  Vimscript command being run.
 void ex_luafile(exarg_T *const eap)
   FUNC_ATTR_NONNULL_ALL
 {

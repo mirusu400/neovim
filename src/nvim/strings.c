@@ -500,13 +500,10 @@ static const char *const e_printf =
 
 /// Get number argument from idxp entry in tvs
 ///
-/// Will give an error message for VimL entry with invalid type or for
-/// insufficient entries.
+/// Will give an error message for Vimscript entry with invalid type or for insufficient entries.
 ///
-/// @param[in]  tvs  List of VimL values. List is terminated by VAR_UNKNOWN
-///                  value.
-/// @param[in,out]  idxp  Index in a list. Will be incremented. Indexing starts
-///                       at 1.
+/// @param[in]  tvs  List of Vimscript values. List is terminated by VAR_UNKNOWN value.
+/// @param[in,out]  idxp  Index in a list. Will be incremented. Indexing starts at 1.
 ///
 /// @return Number value or 0 in case of error.
 static varnumber_T tv_nr(typval_T *tvs, int *idxp)
@@ -530,10 +527,10 @@ static varnumber_T tv_nr(typval_T *tvs, int *idxp)
 
 /// Get string argument from idxp entry in tvs
 ///
-/// Will give an error message for VimL entry with invalid type or for
+/// Will give an error message for Vimscript entry with invalid type or for
 /// insufficient entries.
 ///
-/// @param[in]  tvs  List of VimL values. List is terminated by VAR_UNKNOWN
+/// @param[in]  tvs  List of Vimscript values. List is terminated by VAR_UNKNOWN
 ///                  value.
 /// @param[in,out]  idxp  Index in a list. Will be incremented.
 /// @param[out]  tofree  If the idxp entry in tvs is not a String or a Number,
@@ -564,7 +561,7 @@ static const char *tv_str(typval_T *tvs, int *idxp, char **const tofree)
 
 /// Get pointer argument from the next entry in tvs
 ///
-/// Will give an error message for VimL entry with invalid type or for
+/// Will give an error message for Vimscript entry with invalid type or for
 /// insufficient entries.
 ///
 /// @param[in]  tvs  List of typval_T values.
@@ -595,11 +592,10 @@ static const void *tv_ptr(const typval_T *const tvs, int *const idxp)
 
 /// Get float argument from idxp entry in tvs
 ///
-/// Will give an error message for VimL entry with invalid type or for
+/// Will give an error message for Vimscript entry with invalid type or for
 /// insufficient entries.
 ///
-/// @param[in]  tvs  List of VimL values. List is terminated by VAR_UNKNOWN
-///                  value.
+/// @param[in]  tvs  List of Vimscript values. List is terminated by VAR_UNKNOWN value.
 /// @param[in,out]  idxp  Index in a list. Will be incremented.
 ///
 /// @return Floating-point value or zero in case of error.
@@ -727,7 +723,7 @@ int vim_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 /// @param[in]  str_m  String length.
 /// @param[in]  fmt  String format.
 /// @param[in]  ap  Values that should be formatted. Ignored if tvs is not NULL.
-/// @param[in]  tvs  Values that should be formatted, for printf() VimL
+/// @param[in]  tvs  Values that should be formatted, for printf() Vimscript
 ///                  function. Must be NULL in other cases.
 ///
 /// @return Number of bytes excluding NUL byte that would be written to the
@@ -1603,6 +1599,11 @@ void f_charidx(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
   int len;
   for (p = str, len = 0; utf16idx ? idx >= 0 : p <= str + idx; len++) {
     if (*p == NUL) {
+      // If the index is exactly the number of bytes or utf-16 code units
+      // in the string then return the length of the string in characters.
+      if (utf16idx ? (idx == 0) : (p == (str + idx))) {
+        rettv->vval.v_number = len;
+      }
       return;
     }
     if (utf16idx) {
@@ -2009,6 +2010,9 @@ void f_strtrans(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 }
 
 /// "utf16idx()" function
+///
+/// Converts a byte or character offset in a string to the corresponding UTF-16
+/// code unit offset.
 void f_utf16idx(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 {
   rettv->vval.v_number = -1;
@@ -2045,10 +2049,17 @@ void f_utf16idx(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 
   const char *p;
   int len;
+  int utf16idx = 0;
   for (p = str, len = 0; charidx ? idx >= 0 : p <= str + idx; len++) {
     if (*p == NUL) {
+      // If the index is exactly the number of bytes or characters in the
+      // string then return the length of the string in utf-16 code units.
+      if (charidx ? (idx == 0) : (p == (str + idx))) {
+        rettv->vval.v_number = len;
+      }
       return;
     }
+    utf16idx = len;
     const int clen = ptr2len(p);
     const int c = (clen > 1) ? utf_ptr2char(p) : *p;
     if (c > 0xFFFF) {
@@ -2060,7 +2071,7 @@ void f_utf16idx(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
     }
   }
 
-  rettv->vval.v_number = len > 0 ? len - 1 : 0;
+  rettv->vval.v_number = utf16idx;
 }
 
 /// "tolower(string)" function

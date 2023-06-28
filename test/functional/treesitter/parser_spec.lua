@@ -182,11 +182,11 @@ void ui_refresh(void)
     local function q(n)
       return exec_lua ([[
         local query, n = ...
-        local before = vim.loop.hrtime()
+        local before = vim.uv.hrtime()
         for i=1,n,1 do
           cquery = vim.treesitter.query.parse("c", ...)
         end
-        local after = vim.loop.hrtime()
+        local after = vim.uv.hrtime()
         return after - before
       ]], long_query, n)
     end
@@ -922,12 +922,6 @@ int x = INT_MAX;
       [19] = '1' }, get_fold_levels())
 
     helpers.command('1,2d')
-    helpers.poke_eventloop()
-
-    exec_lua([[vim.treesitter.get_parser():parse()]])
-
-    helpers.poke_eventloop()
-    helpers.sleep(100)
 
     eq({
       [1] = '0',
@@ -947,6 +941,29 @@ int x = INT_MAX;
       [15] = '2',
       [16] = '1',
       [17] = '0' }, get_fold_levels())
+
+    helpers.command('1put!')
+
+    eq({
+      [1] = '>1',
+      [2] = '1',
+      [3] = '1',
+      [4] = '1',
+      [5] = '>2',
+      [6] = '2',
+      [7] = '2',
+      [8] = '1',
+      [9] = '1',
+      [10] = '>2',
+      [11] = '2',
+      [12] = '2',
+      [13] = '2',
+      [14] = '2',
+      [15] = '>3',
+      [16] = '3',
+      [17] = '3',
+      [18] = '2',
+      [19] = '1' }, get_fold_levels())
   end)
 
   it('tracks the root range properly (#22911)', function()

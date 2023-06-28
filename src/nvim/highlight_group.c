@@ -231,6 +231,7 @@ static const char *highlight_init_both[] = {
   "default link DiagnosticSignOk DiagnosticOk",
   "default DiagnosticDeprecated cterm=strikethrough gui=strikethrough guisp=Red",
   "default link DiagnosticUnnecessary Comment",
+  "default link LspInlayHint NonText",
 
   // Text
   "default link @text.literal Comment",
@@ -697,10 +698,18 @@ int load_colors(char *name)
   char *buf = xmalloc(buflen);
   apply_autocmds(EVENT_COLORSCHEMEPRE, name, curbuf->b_fname, false, curbuf);
   snprintf(buf, buflen, "colors/%s.vim", name);
-  int retval = source_runtime(buf, DIP_START + DIP_OPT);
+  int retval = source_runtime(buf, 0);
   if (retval == FAIL) {
     snprintf(buf, buflen, "colors/%s.lua", name);
-    retval = source_runtime(buf, DIP_START + DIP_OPT);
+    retval = source_runtime(buf, 0);
+  }
+  if (retval == FAIL) {
+    snprintf(buf, buflen, "colors/%s.vim", name);
+    retval = source_runtime(buf, DIP_NORTP + DIP_START + DIP_OPT);
+  }
+  if (retval == FAIL) {
+    snprintf(buf, buflen, "colors/%s.lua", name);
+    retval = source_runtime(buf, DIP_NORTP + DIP_START + DIP_OPT);
   }
   xfree(buf);
   if (retval == OK) {
@@ -1272,7 +1281,7 @@ void do_highlight(const char *line, const bool forceit, const bool init)
                   if (dark != -1
                       && dark != (*p_bg == 'd')
                       && !option_was_set("bg")) {
-                    set_option_value_give_err("bg", 0L, (dark ? "dark" : "light"), 0);
+                    set_option_value_give_err("bg", CSTR_AS_OPTVAL(dark ? "dark" : "light"), 0);
                     reset_option_was_set("bg");
                   }
                 }
@@ -1552,7 +1561,7 @@ static bool hlgroup2dict(Dictionary *hl, NS ns_id, int hl_id, Arena *arena)
     PUT_C(*hl, "default", BOOLEAN_OBJ(true));
   }
   if (link > 0) {
-    PUT_C(*hl, "link", STRING_OBJ(cstr_as_string(hl_table[link - 1].sg_name)));
+    PUT_C(*hl, "link", CSTR_AS_OBJ(hl_table[link - 1].sg_name));
   }
   Dictionary hl_cterm = arena_dict(arena, HLATTRS_DICT_SIZE);
   hlattrs2dict(hl, NULL, attr, true, true);

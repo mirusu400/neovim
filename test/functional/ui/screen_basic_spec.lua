@@ -117,6 +117,12 @@ local function screen_tests(linegrid)
       screen:expect(function()
         eq(expected, screen.title)
       end)
+      screen:detach()
+      screen.title = nil
+      screen:attach()
+      screen:expect(function()
+        eq(expected, screen.title)
+      end)
     end)
   end)
 
@@ -125,6 +131,12 @@ local function screen_tests(linegrid)
       local expected = 'test-icon'
       command('set iconstring='..expected)
       command('set icon')
+      screen:expect(function()
+        eq(expected, screen.icon)
+      end)
+      screen:detach()
+      screen.icon = nil
+      screen:attach()
       screen:expect(function()
         eq(expected, screen.icon)
       end)
@@ -1083,4 +1095,19 @@ it('CTRL-F or CTRL-B scrolls a page after UI attach/resize #20605', function()
   eq(906, funcs.line('w0'))
   feed('<C-F>')
   eq(953, funcs.line('w0'))
+end)
+
+it("showcmd doesn't cause empty grid_line with redrawdebug=compositor #22593", function()
+  clear()
+  local screen = Screen.new(30, 2)
+  screen:set_default_attr_ids({
+    [0] = {bold = true, foreground = Screen.colors.Blue},
+  })
+  screen:attach()
+  command('set showcmd redrawdebug=compositor')
+  feed('d')
+  screen:expect{grid=[[
+    ^                              |
+                       d          |
+  ]]}
 end)

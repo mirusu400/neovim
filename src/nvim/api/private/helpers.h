@@ -20,7 +20,6 @@
 #define BOOLEAN_OBJ(b) ((Object) { \
     .type = kObjectTypeBoolean, \
     .data.boolean = b })
-#define BOOL(b) BOOLEAN_OBJ(b)
 
 #define INTEGER_OBJ(i) ((Object) { \
     .type = kObjectTypeInteger, \
@@ -34,6 +33,7 @@
     .type = kObjectTypeString, \
     .data.string = s })
 
+#define CSTR_AS_OBJ(s) STRING_OBJ(cstr_as_string(s))
 #define CSTR_TO_OBJ(s) STRING_OBJ(cstr_to_string(s))
 
 #define BUFFER_OBJ(s) ((Object) { \
@@ -94,7 +94,7 @@
 
 #define cbuf_as_string(d, s) ((String) { .data = d, .size = s })
 
-#define STATIC_CSTR_AS_STRING(s) ((String) { .data = s, .size = sizeof(s) - 1 })
+#define STATIC_CSTR_AS_STRING(s) ((String) { .data = s, .size = sizeof("" s) - 1 })
 
 /// Create a new String instance, putting data in allocated memory
 ///
@@ -102,6 +102,9 @@
 #define STATIC_CSTR_TO_STRING(s) ((String){ \
     .data = xmemdupz(s, sizeof(s) - 1), \
     .size = sizeof(s) - 1 })
+
+#define STATIC_CSTR_AS_OBJ(s) STRING_OBJ(STATIC_CSTR_AS_STRING(s))
+#define STATIC_CSTR_TO_OBJ(s) STRING_OBJ(STATIC_CSTR_TO_STRING(s))
 
 // Helpers used by the generated msgpack-rpc api wrappers
 #define api_init_boolean
@@ -132,8 +135,8 @@ EXTERN PMap(int) tabpage_handles INIT(= MAP_INIT);
 
 /// Structure used for saving state for :try
 ///
-/// Used when caller is supposed to be operating when other VimL code is being
-/// processed and that “other VimL code” must not be affected.
+/// Used when caller is supposed to be operating when other Vimscript code is being
+/// processed and that “other Vimscript code” must not be affected.
 typedef struct {
   except_T *current_exception;
   msglist_T *private_msg_list;

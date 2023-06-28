@@ -54,10 +54,6 @@ else()
   option(USE_BUNDLED_LIBICONV "Use the bundled version of libiconv." OFF)
 endif()
 
-if(WIN32)
-  option(USE_BUNDLED_NVIMQT "Bundle neovim-qt" ON)
-endif()
-
 option(USE_EXISTING_SRC_DIR "Skip download of deps sources in case of existing source directory." OFF)
 
 find_package(Git)
@@ -88,7 +84,11 @@ foreach(dep ${DEPENDENCIES})
   list(GET dep 0 name)
   list(GET dep 1 value)
   if(NOT ${name})
-    set(${name} ${value})
+    # _URL variables must NOT be set when USE_EXISTING_SRC_DIR is set,
+    # otherwise ExternalProject will try to re-download the sources.
+    if(NOT USE_EXISTING_SRC_DIR)
+      set(${name} ${value})
+    endif()
   endif()
 endforeach()
 
@@ -153,12 +153,6 @@ if(WIN32)
   GetExecutable(TARGET cat)
   GetExecutable(TARGET tee)
   GetExecutable(TARGET xxd)
-
-  if(USE_BUNDLED_NVIMQT)
-    GetBinaryDep(TARGET wingui
-      INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory bin ${DEPS_BIN_DIR}
-      COMMAND ${CMAKE_COMMAND} -E copy_directory share ${DEPS_INSTALL_DIR}/share)
-  endif()
 
   GetBinaryDep(TARGET win32yank_X86_64
     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy win32yank.exe ${DEPS_BIN_DIR})

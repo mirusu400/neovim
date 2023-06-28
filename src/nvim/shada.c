@@ -2529,15 +2529,15 @@ static ShaDaWriteResult shada_write(ShaDaWriteDef *const sd_writer, ShaDaReadDef
         .capacity = 5,
         .items = ((KeyValuePair[]) {
           { STATIC_CSTR_AS_STRING("generator"),
-            STRING_OBJ(STATIC_CSTR_AS_STRING("nvim")) },
+            STATIC_CSTR_AS_OBJ("nvim") },
           { STATIC_CSTR_AS_STRING("version"),
-            STRING_OBJ(cstr_as_string(longVersion)) },
+            CSTR_AS_OBJ(longVersion) },
           { STATIC_CSTR_AS_STRING("max_kbyte"),
             INTEGER_OBJ((Integer)max_kbyte) },
           { STATIC_CSTR_AS_STRING("pid"),
             INTEGER_OBJ((Integer)os_get_pid()) },
           { STATIC_CSTR_AS_STRING("encoding"),
-            STRING_OBJ(cstr_as_string(p_enc)) },
+            CSTR_AS_OBJ(p_enc) },
         }),
       }
     }
@@ -3396,7 +3396,7 @@ static ShaDaReadResult msgpack_read_uint64(ShaDaReadDef *const sd_reader, const 
       if (msgpack_to_vim(obj, &adtv) == FAIL \
           || adtv.v_type != VAR_DICT) { \
         semsg(_(READERR(name, \
-                        "cannot be converted to a VimL dictionary")), \
+                        "cannot be converted to a Vimscript dictionary")), \
               initial_fpos); \
         ga_clear(&ad_ga); \
         tv_clear(&adtv); \
@@ -3420,7 +3420,7 @@ static ShaDaReadResult msgpack_read_uint64(ShaDaReadDef *const sd_reader, const 
       }; \
       typval_T aetv; \
       if (msgpack_to_vim(obj, &aetv) == FAIL) { \
-        semsg(_(READERR(name, "cannot be converted to a VimL list")), \
+        semsg(_(READERR(name, "cannot be converted to a Vimscript list")), \
               initial_fpos); \
         tv_clear(&aetv); \
         goto shada_read_next_item_error; \
@@ -3819,7 +3819,7 @@ shada_read_next_item_start:
     } else if (msgpack_to_vim(unpacked.data.via.array.ptr[1],
                               &(entry->data.global_var.value)) == FAIL) {
       semsg(_(READERR("variable", "has value that cannot "
-                      "be converted to the VimL value")), initial_fpos);
+                      "be converted to the Vimscript value")), initial_fpos);
       goto shada_read_next_item_error;
     }
     break;

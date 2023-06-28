@@ -48,7 +48,7 @@ jobs:
           cmake --build .deps
 
       - if: success() || failure() && steps.abort_job.outputs.status == 'success'
-        run: cmake -B build -G Ninja
+        run: cmake -B build -G Ninja -D CI_LINT=ON
 
       - if: "!cancelled()"
         name: Determine if run should be aborted
@@ -78,18 +78,6 @@ jobs:
         name: uncrustify
         run: cmake --build build --target lintc-uncrustify
 
-      - if: success() || failure() && steps.abort_job.outputs.status == 'success'
-        name: suggester / uncrustify
-        uses: reviewdog/action-suggester@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tool_name: uncrustify
-          cleanup: false
-
-      - if: success() || failure() && steps.abort_job.outputs.status == 'success'
-        name: check uncrustify
-        run: git diff --color --exit-code
-
   posix:
     name: ${{ matrix.runner }} ${{ matrix.flavor }} (cc=${{ matrix.cc }})
     strategy:
@@ -113,9 +101,7 @@ jobs:
             flags: -D CMAKE_FIND_FRAMEWORK=NEVER
             deps_flags: -D CMAKE_FIND_FRAMEWORK=NEVER
 
-            # functionaltest-lua is our dumping ground for non-mainline configurations.
-            # 1. Check that the tests pass with PUC Lua instead of LuaJIT.
-            # 2. No treesitter parsers installed.
+            # Check that the tests pass with PUC Lua instead of LuaJIT.
           - flavor: functionaltest-lua
             cc: gcc
             runner: ubuntu-22.04
@@ -179,15 +165,10 @@ jobs:
         timeout-minutes: 5
         run: cmake --build build --target unittest
 
-      - if: matrix.flavor != 'functionaltest-lua' && (success() || failure() && steps.abort_job.outputs.status == 'success')
+      - if: success() || failure() && steps.abort_job.outputs.status == 'success'
         name: Functionaltest
         timeout-minutes: 20
         run: cmake --build build --target functionaltest
-
-      - if: matrix.flavor == 'functionaltest-lua' && (success() || failure() && steps.abort_job.outputs.status == 'success')
-        name: Functionaltest with PUC Lua
-        timeout-minutes: 20
-        run: cmake --build build --target functionaltest-lua
 
       - if: matrix.flavor != 'tsan' && (success() || failure() && steps.abort_job.outputs.status == 'success')
         name: Oldtest

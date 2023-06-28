@@ -82,70 +82,6 @@ bool tv_in_free_unref_items = false;
 const char *const tv_empty_string = "";
 
 //{{{1 Lists
-//{{{2 List log
-#ifdef LOG_LIST_ACTIONS
-ListLog *list_log_first = NULL;
-ListLog *list_log_last = NULL;
-
-/// Write list log to the given file
-///
-/// @param[in]  fname  File to write log to. Will be appended to if already
-///                    present.
-void list_write_log(const char *const fname)
-  FUNC_ATTR_NONNULL_ALL
-{
-  FileDescriptor fp;
-  const int fo_ret = file_open(&fp, fname, kFileCreate|kFileAppend, 0600);
-  if (fo_ret != 0) {
-    semsg(_("E5142: Failed to open file %s: %s"), fname, os_strerror(fo_ret));
-    return;
-  }
-  for (ListLog *chunk = list_log_first; chunk != NULL;) {
-    for (size_t i = 0; i < chunk->size; i++) {
-      char buf[10 + 1 + ((16 + 3) * 3) + (8 + 2) + 2];
-      //       act  :     hex  " c:"      len "[]" "\n\0"
-      const ListLogEntry entry = chunk->entries[i];
-      const size_t snp_len = (size_t)snprintf(buf, sizeof(buf),
-                                              "%-10.10s: l:%016" PRIxPTR "[%08d] 1:%016" PRIxPTR " 2:%016" PRIxPTR
-                                              "\n",
-                                              entry.action, entry.l, entry.len, entry.li1,
-                                              entry.li2);
-      assert(snp_len + 1 == sizeof(buf));
-      const ptrdiff_t fw_ret = file_write(&fp, buf, snp_len);
-      if (fw_ret != (ptrdiff_t)snp_len) {
-        assert(fw_ret < 0);
-        if (i) {
-          memmove(chunk->entries, chunk->entries + i,
-                  sizeof(chunk->entries[0]) * (chunk->size - i));
-          chunk->size -= i;
-        }
-        semsg(_("E5143: Failed to write to file %s: %s"),
-              fname, os_strerror((int)fw_ret));
-        return;
-      }
-    }
-    list_log_first = chunk->next;
-    xfree(chunk);
-    chunk = list_log_first;
-  }
-  const int fc_ret = file_close(&fp, true);
-  if (fc_ret != 0) {
-    semsg(_("E5144: Failed to close file %s: %s"), fname, os_strerror(fc_ret));
-  }
-}
-
-# ifdef EXITFREE
-/// Free list log
-void list_free_log(void)
-{
-  for (ListLog *chunk = list_log_first; chunk != NULL;) {
-    list_log_first = chunk->next;
-    xfree(chunk);
-    chunk = list_log_first;
-  }
-}
-# endif
-#endif
 //{{{2 List item
 
 /// Allocate a list item
@@ -234,7 +170,7 @@ void tv_list_watch_fix(list_T *const l, const listitem_T *const item)
 /// Caller should take care of the reference count.
 ///
 /// @param[in]  len  Expected number of items to be populated before list
-///                  becomes accessible from VimL. It is still valid to
+///                  becomes accessible from Vimscript. It is still valid to
 ///                  underpopulate a list, value only controls how many elements
 ///                  will be allocated in advance. Currently does nothing.
 ///                  @see ListLenSpecials.
@@ -252,7 +188,6 @@ list_T *tv_list_alloc(const ptrdiff_t len)
   list->lv_used_prev = NULL;
   list->lv_used_next = gc_first_list;
   gc_first_list = list;
-  list_log(list, NULL, (void *)(uintptr_t)len, "alloc");
   list->lua_table_ref = LUA_NOREF;
   return list;
 }
@@ -283,8 +218,6 @@ void tv_list_init_static10(staticList10_T *const sl)
     li->li_prev = li - 1;
     li->li_next = li + 1;
   }
-  list_log((const list_T *)sl, &sl->sl_items[0], &sl->sl_items[SL_SIZE - 1],
-           "s10init");
 #undef SL_SIZE
 }
 
@@ -296,7 +229,6 @@ void tv_list_init_static(list_T *const l)
 {
   CLEAR_POINTER(l);
   l->lv_refcount = DO_NOT_FREE_CNT;
-  list_log(l, NULL, NULL, "sinit");
 }
 
 /// Free items contained in a list
@@ -305,7 +237,6 @@ void tv_list_init_static(list_T *const l)
 void tv_list_free_contents(list_T *const l)
   FUNC_ATTR_NONNULL_ALL
 {
-  list_log(l, NULL, NULL, "freecont");
   for (listitem_T *item = l->lv_first; item != NULL; item = l->lv_first) {
     // Remove the item before deleting it.
     l->lv_first = item->li_next;
@@ -335,7 +266,6 @@ void tv_list_free_list(list_T *const l)
   if (l->lv_used_next != NULL) {
     l->lv_used_next->lv_used_prev = l->lv_used_prev;
   }
-  list_log(l, NULL, NULL, "freelist");
 
   NLUA_CLEAR_REF(l->lua_table_ref);
   xfree(l);
@@ -382,7 +312,6 @@ void tv_list_unref(list_T *const l)
 void tv_list_drop_items(list_T *const l, listitem_T *const item, listitem_T *const item2)
   FUNC_ATTR_NONNULL_ALL
 {
-  list_log(l, item, item2, "drop");
   // Notify watchers.
   for (listitem_T *ip = item; ip != item2->li_next; ip = ip->li_next) {
     l->lv_len--;
@@ -400,14 +329,12 @@ void tv_list_drop_items(list_T *const l, listitem_T *const item, listitem_T *con
     item->li_prev->li_next = item2->li_next;
   }
   l->lv_idx_item = NULL;
-  list_log(l, l->lv_first, l->lv_last, "afterdrop");
 }
 
 /// Like tv_list_drop_items, but also frees all removed items
 void tv_list_remove_items(list_T *const l, listitem_T *const item, listitem_T *const item2)
   FUNC_ATTR_NONNULL_ALL
 {
-  list_log(l, item, item2, "remove");
   tv_list_drop_items(l, item, item2);
   for (listitem_T *li = item;;) {
     tv_clear(TV_LIST_ITEM_TV(li));
@@ -431,7 +358,6 @@ void tv_list_move_items(list_T *const l, listitem_T *const item, listitem_T *con
                         list_T *const tgt_l, const int cnt)
   FUNC_ATTR_NONNULL_ALL
 {
-  list_log(l, item, item2, "move");
   tv_list_drop_items(l, item, item2);
   item->li_prev = tgt_l->lv_last;
   item2->li_next = NULL;
@@ -442,7 +368,6 @@ void tv_list_move_items(list_T *const l, listitem_T *const item, listitem_T *con
   }
   tgt_l->lv_last = item2;
   tgt_l->lv_len += cnt;
-  list_log(tgt_l, tgt_l->lv_first, tgt_l->lv_last, "movetgt");
 }
 
 /// Insert list item
@@ -470,11 +395,10 @@ void tv_list_insert(list_T *const l, listitem_T *const ni, listitem_T *const ite
     }
     item->li_prev = ni;
     l->lv_len++;
-    list_log(l, ni, item, "insert");
   }
 }
 
-/// Insert VimL value into a list
+/// Insert Vimscript value into a list
 ///
 /// @param[out]  l  List to insert to.
 /// @param[in,out]  tv  Value to insert. Is copied (@see tv_copy()) to an
@@ -496,7 +420,6 @@ void tv_list_insert_tv(list_T *const l, typval_T *const tv, listitem_T *const it
 void tv_list_append(list_T *const l, listitem_T *const item)
   FUNC_ATTR_NONNULL_ALL
 {
-  list_log(l, item, NULL, "append");
   if (l->lv_last == NULL) {
     // empty list
     l->lv_first = item;
@@ -511,7 +434,7 @@ void tv_list_append(list_T *const l, listitem_T *const item)
   item->li_next = NULL;
 }
 
-/// Append VimL value to the end of list
+/// Append Vimscript value to the end of list
 ///
 /// @param[out]  l  List to append to.
 /// @param[in,out]  tv  Value to append. Is copied (@see tv_copy()) to an
@@ -669,6 +592,119 @@ list_T *tv_list_copy(const vimconv_T *const conv, list_T *const orig, const bool
 tv_list_copy_error:
   tv_list_unref(copy);
   return NULL;
+}
+
+/// Get the list item in "l" with index "n1".  "n1" is adjusted if needed.
+/// Return NULL if there is no such item.
+listitem_T *tv_list_check_range_index_one(list_T *const l, long *const n1, const bool quiet)
+{
+  listitem_T *li = tv_list_find_index(l, n1);
+  if (li == NULL) {
+    if (!quiet) {
+      semsg(_(e_list_index_out_of_range_nr), (int64_t)n1);
+    }
+    return NULL;
+  }
+  return li;
+}
+
+/// Check that "n2" can be used as the second index in a range of list "l".
+/// If "n1" or "n2" is negative it is changed to the positive index.
+/// "li1" is the item for item "n1".
+/// Return OK or FAIL.
+int tv_list_check_range_index_two(list_T *const l, long *const n1, const listitem_T *const li1,
+                                  long *const n2, const bool quiet)
+{
+  if (*n2 < 0) {
+    listitem_T *ni = tv_list_find(l, (int)(*n2));
+    if (ni == NULL) {
+      if (!quiet) {
+        semsg(_(e_list_index_out_of_range_nr), (int64_t)(*n2));
+      }
+      return FAIL;
+    }
+    *n2 = tv_list_idx_of_item(l, ni);
+  }
+
+  // Check that n2 isn't before n1.
+  if (*n1 < 0) {
+    *n1 = tv_list_idx_of_item(l, li1);
+  }
+  if (*n2 < *n1) {
+    if (!quiet) {
+      semsg(_(e_list_index_out_of_range_nr), (int64_t)(*n2));
+    }
+    return FAIL;
+  }
+  return OK;
+}
+
+/// Assign values from list "src" into a range of "dest".
+/// "idx1_arg" is the index of the first item in "dest" to be replaced.
+/// "idx2" is the index of last item to be replaced, but when "empty_idx2" is
+/// true then replace all items after "idx1".
+/// "op" is the operator, normally "=" but can be "+=" and the like.
+/// "varname" is used for error messages.
+/// Returns OK or FAIL.
+int tv_list_assign_range(list_T *const dest, list_T *const src, const long idx1_arg,
+                         const long idx2, const bool empty_idx2, const char *const op,
+                         const char *const varname)
+{
+  long idx1 = idx1_arg;
+  listitem_T *const first_li = tv_list_find_index(dest, &idx1);
+  listitem_T *src_li;
+
+  // Check whether any of the list items is locked before making any changes.
+  long idx = idx1;
+  listitem_T *dest_li = first_li;
+  for (src_li = tv_list_first(src); src_li != NULL && dest_li != NULL;) {
+    if (value_check_lock(TV_LIST_ITEM_TV(dest_li)->v_lock, varname, TV_CSTRING)) {
+      return FAIL;
+    }
+    src_li = TV_LIST_ITEM_NEXT(src, src_li);
+    if (src_li == NULL || (!empty_idx2 && idx2 == idx)) {
+      break;
+    }
+    dest_li = TV_LIST_ITEM_NEXT(dest, dest_li);
+    idx++;
+  }
+
+  // Assign the List values to the list items.
+  idx = idx1;
+  dest_li = first_li;
+  for (src_li = tv_list_first(src); src_li != NULL;) {
+    if (op != NULL && *op != '=') {
+      eexe_mod_op(TV_LIST_ITEM_TV(dest_li), TV_LIST_ITEM_TV(src_li), op);
+    } else {
+      tv_clear(TV_LIST_ITEM_TV(dest_li));
+      tv_copy(TV_LIST_ITEM_TV(src_li), TV_LIST_ITEM_TV(dest_li));
+    }
+    src_li = TV_LIST_ITEM_NEXT(src, src_li);
+    if (src_li == NULL || (!empty_idx2 && idx2 == idx)) {
+      break;
+    }
+    assert(dest_li != NULL);
+    if (TV_LIST_ITEM_NEXT(dest, dest_li) == NULL) {
+      // Need to add an empty item.
+      tv_list_append_number(dest, 0);
+      // "dest_li" may have become invalid after append, don’t use it.
+      dest_li = tv_list_last(dest);  // Valid again.
+    } else {
+      dest_li = TV_LIST_ITEM_NEXT(dest, dest_li);
+    }
+    idx++;
+  }
+  if (src_li != NULL) {
+    emsg(_("E710: List value has more items than target"));
+    return FAIL;
+  }
+  if (empty_idx2
+      ? (dest_li != NULL && TV_LIST_ITEM_NEXT(dest, dest_li) != NULL)
+      : idx != idx2) {
+    emsg(_("E711: List value has not enough items"));
+    return FAIL;
+  }
+  return OK;
 }
 
 /// Flatten up to "maxitems" in "list", starting at "first" to depth "maxdepth".
@@ -1416,7 +1452,6 @@ void tv_list_reverse(list_T *const l)
   if (tv_list_len(l) <= 1) {
     return;
   }
-  list_log(l, NULL, NULL, "reverse");
 #define SWAP(a, b) \
   do { \
     tmp = (a); \
@@ -1454,7 +1489,6 @@ void tv_list_item_sort(list_T *const l, ListSortItem *const ptrs,
   if (len <= 1) {
     return;
   }
-  list_log(l, NULL, NULL, "sort");
   int i = 0;
   TV_LIST_ITER(l, li, {
     ptrs[i].item = li;
@@ -1543,7 +1577,6 @@ listitem_T *tv_list_find(list_T *const l, int n)
   // Cache the used index.
   l->lv_idx = idx;
   l->lv_idx_item = item;
-  list_log(l, l->lv_idx_item, (void *)(uintptr_t)l->lv_idx, "find");
 
   return item;
 }
@@ -1585,6 +1618,21 @@ const char *tv_list_find_str(list_T *const l, const int n)
     return NULL;
   }
   return tv_get_string(TV_LIST_ITEM_TV(li));
+}
+
+/// Like tv_list_find() but when a negative index is used that is not found use
+/// zero and set "idx" to zero.  Used for first index of a range.
+listitem_T *tv_list_find_index(list_T *const l, long *const idx)
+  FUNC_ATTR_WARN_UNUSED_RESULT
+{
+  listitem_T *li = tv_list_find(l, (int)(*idx));
+  if (li == NULL) {
+    if (*idx < 0) {
+      *idx = 0;
+      li = tv_list_find(l, (int)(*idx));
+    }
+  }
+  return li;
 }
 
 /// Locate item in a list and return its index
@@ -3038,7 +3086,7 @@ void f_list2blob(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 ///
 /// @param[out]  ret_tv  Structure where list is saved.
 /// @param[in]  len  Expected number of items to be populated before list
-///                  becomes accessible from VimL. It is still valid to
+///                  becomes accessible from Vimscript. It is still valid to
 ///                  underpopulate a list, value only controls how many elements
 ///                  will be allocated in advance. @see ListLenSpecials.
 ///
@@ -3084,11 +3132,12 @@ static void tv_dict_list(typval_T *const tv, typval_T *const rettv, const DictLi
     emsg(_(e_dictreq));
     return;
   }
-  if (tv->vval.v_dict == NULL) {
-    return;
-  }
 
   tv_list_alloc_ret(rettv, tv_dict_len(tv->vval.v_dict));
+  if (tv->vval.v_dict == NULL) {
+    // NULL dict behaves like an empty dict
+    return;
+  }
 
   TV_DICT_ITER(tv->vval.v_dict, di, {
     typval_T tv_item = { .v_lock = VAR_UNLOCKED };
@@ -3489,7 +3538,7 @@ void tv_clear(typval_T *const tv)
 
 //{{{3 Free
 
-/// Free allocated VimL object and value stored inside
+/// Free allocated Vimscript object and value stored inside
 ///
 /// @param  tv  Object to free.
 void tv_free(typval_T *tv)
@@ -3667,7 +3716,7 @@ void tv_item_lock(typval_T *const tv, const int deep, const bool lock, const boo
   recurse--;
 }
 
-/// Check whether VimL value is locked itself or refers to a locked container
+/// Check whether Vimscript value is locked itself or refers to a locked container
 ///
 /// @warning Fixed container is not the same as locked.
 ///
@@ -3766,7 +3815,7 @@ bool value_check_lock(VarLockStatus lock, const char *name, size_t name_len)
 
 static int tv_equal_recurse_limit;
 
-/// Compare two VimL values
+/// Compare two Vimscript values
 ///
 /// Like "==", but strings and numbers are different, as well as floats and
 /// numbers.
@@ -3956,14 +4005,13 @@ static const char *const str_errors[] = {
   [VAR_FUNC]= N_(FUNC_ERROR),
   [VAR_LIST]= N_("E730: Using a List as a String"),
   [VAR_DICT]= N_("E731: Using a Dictionary as a String"),
-  [VAR_FLOAT]= e_using_float_as_string,
   [VAR_BLOB]= N_("E976: Using a Blob as a String"),
   [VAR_UNKNOWN]= e_using_invalid_value_as_string,
 };
 
 #undef FUNC_ERROR
 
-/// Check that given value is a VimL String or can be "cast" to it.
+/// Check that given value is a Vimscript String or can be "cast" to it.
 ///
 /// Error messages are compatible with tv_get_string_chk() previously used for
 /// the same purpose.
@@ -3979,12 +4027,12 @@ bool tv_check_str(const typval_T *const tv)
   case VAR_BOOL:
   case VAR_SPECIAL:
   case VAR_STRING:
+  case VAR_FLOAT:
     return true;
   case VAR_PARTIAL:
   case VAR_FUNC:
   case VAR_LIST:
   case VAR_DICT:
-  case VAR_FLOAT:
   case VAR_BLOB:
   case VAR_UNKNOWN:
     emsg(_(str_errors[tv->v_type]));
@@ -3996,7 +4044,7 @@ bool tv_check_str(const typval_T *const tv)
 
 //{{{2 Get
 
-/// Get the number value of a VimL object
+/// Get the number value of a Vimscript object
 ///
 /// @note Use tv_get_number_chk() if you need to determine whether there was an
 ///       error.
@@ -4012,7 +4060,7 @@ varnumber_T tv_get_number(const typval_T *const tv)
   return tv_get_number_chk(tv, &error);
 }
 
-/// Get the number value of a VimL object
+/// Get the number value of a Vimscript object
 ///
 /// @param[in]  tv  Object to get value from.
 /// @param[out]  ret_error  If type error occurred then `true` will be written
@@ -4071,7 +4119,7 @@ varnumber_T tv_get_bool_chk(const typval_T *const tv, bool *const ret_error)
   return tv_get_number_chk(tv, ret_error);
 }
 
-/// Get the line number from VimL object
+/// Get the line number from Vimscript object
 ///
 /// @param[in]  tv  Object to get value from. Is expected to be a number or
 ///                 a special string like ".", "$", … (works with current buffer
@@ -4094,7 +4142,7 @@ linenr_T tv_get_lnum(const typval_T *const tv)
   return lnum;
 }
 
-/// Get the floating-point value of a VimL object
+/// Get the floating-point value of a Vimscript object
 ///
 /// Raises an error if object is not number or floating-point.
 ///
@@ -4337,7 +4385,7 @@ int tv_check_for_list_or_blob_arg(const typval_T *const args, const int idx)
   return OK;
 }
 
-/// Get the string value of a "stringish" VimL object.
+/// Get the string value of a "stringish" Vimscript object.
 ///
 /// @param[in]  tv  Object to get value of.
 /// @param  buf  Buffer used to hold numbers and special variables converted to
@@ -4355,6 +4403,9 @@ const char *tv_get_string_buf_chk(const typval_T *const tv, char *const buf)
   case VAR_NUMBER:
     snprintf(buf, NUMBUFLEN, "%" PRIdVARNUMBER, tv->vval.v_number);  // -V576
     return buf;
+  case VAR_FLOAT:
+    vim_snprintf(buf, NUMBUFLEN, "%g", tv->vval.v_float);
+    return buf;
   case VAR_STRING:
     if (tv->vval.v_string != NULL) {
       return tv->vval.v_string;
@@ -4370,7 +4421,6 @@ const char *tv_get_string_buf_chk(const typval_T *const tv, char *const buf)
   case VAR_FUNC:
   case VAR_LIST:
   case VAR_DICT:
-  case VAR_FLOAT:
   case VAR_BLOB:
   case VAR_UNKNOWN:
     emsg(_(str_errors[tv->v_type]));
@@ -4380,7 +4430,7 @@ const char *tv_get_string_buf_chk(const typval_T *const tv, char *const buf)
   return NULL;
 }
 
-/// Get the string value of a "stringish" VimL object.
+/// Get the string value of a "stringish" Vimscript object.
 ///
 /// @warning For number and special values it uses a single, static buffer. It
 ///          may be used only once, next call to tv_get_string may reuse it. Use
@@ -4399,7 +4449,7 @@ const char *tv_get_string_chk(const typval_T *const tv)
   return tv_get_string_buf_chk(tv, mybuf);
 }
 
-/// Get the string value of a "stringish" VimL object.
+/// Get the string value of a "stringish" Vimscript object.
 ///
 /// @warning For number and special values it uses a single, static buffer. It
 ///          may be used only once, next call to tv_get_string may reuse it. Use
@@ -4421,7 +4471,7 @@ const char *tv_get_string(const typval_T *const tv)
   return tv_get_string_buf((typval_T *)tv, mybuf);
 }
 
-/// Get the string value of a "stringish" VimL object.
+/// Get the string value of a "stringish" Vimscript object.
 ///
 /// @note tv_get_string_chk() and tv_get_string_buf_chk() are similar, but
 ///       return NULL on error.

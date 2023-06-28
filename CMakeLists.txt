@@ -146,10 +146,7 @@ if(CMAKE_C_FLAGS_RELWITHDEBINFO MATCHES DNDEBUG)
   string(REPLACE "  " " " CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}") # Remove duplicate whitespace
 endif()
 
-option(LOG_LIST_ACTIONS "Add list actions logging" OFF)
-
 option(ENABLE_ASAN_UBSAN "Enable Clang address & undefined behavior sanitizer for nvim binary." OFF)
-option(LOG_DEBUG "Enable debug log messages even in a release build" OFF)
 option(ENABLE_MSAN "Enable Clang memory sanitizer for nvim binary." OFF)
 option(ENABLE_TSAN "Enable Clang thread sanitizer for nvim binary." OFF)
 
@@ -232,11 +229,14 @@ endif()
 #
 # Lint
 #
-find_program(SHELLCHECK_PRG shellcheck)
-find_program(STYLUA_PRG stylua)
+option(CI_LINT "Abort if lint programs not found" OFF)
+if(CI_LINT)
+  set(LINT_REQUIRED "REQUIRED")
+endif()
+find_program(SHELLCHECK_PRG shellcheck ${LINT_REQUIRED})
+find_program(STYLUA_PRG stylua ${LINT_REQUIRED})
 
 add_glob_target(
-  REQUIRED
   TARGET lintlua-luacheck
   COMMAND ${DEPS_BIN_DIR}/luacheck
   FLAGS -q
@@ -292,21 +292,10 @@ install_helper(
   FILES ${CMAKE_SOURCE_DIR}/src/man/nvim.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 
-if(EXISTS "${DEPS_PREFIX}/share/nvim-qt")
-  option(USE_BUNDLED_NVIMQT "Bundle neovim-qt" ON)
-else()
-  option(USE_BUNDLED_NVIMQT "Bundle neovim-qt" OFF)
-endif()
-
 add_subdirectory(src/nvim)
 add_subdirectory(cmake.config)
 add_subdirectory(runtime)
 add_subdirectory(test)
-if(WIN32 AND USE_BUNDLED_NVIMQT)
-  install_helper(
-    FILES ${DEPS_PREFIX}/share/nvim-qt/runtime/plugin/nvim_gui_shim.vim
-    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/nvim-qt/runtime/plugin)
-endif()
 
 add_custom_target(uninstall
   COMMAND ${CMAKE_COMMAND} -P ${PROJECT_SOURCE_DIR}/cmake/UninstallHelper.cmake)

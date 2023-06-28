@@ -1,6 +1,7 @@
 #ifndef NVIM_OPTION_DEFS_H
 #define NVIM_OPTION_DEFS_H
 
+#include "nvim/api/private/defs.h"
 #include "nvim/eval/typval_defs.h"
 #include "nvim/macros.h"
 #include "nvim/types.h"
@@ -105,7 +106,7 @@ typedef enum {
   "%f(%l) \\=: %t%*\\D%n: %m,%*[^\"]\"%f\"%*\\D%l: %m,%f(%l) \\=: %m,%*[^ ] %f %l: %m,%f:%l:%c:%m,%f(%l):%m,%f:%l:%m,%f|%l| %m"
 #else
 # define DFLT_EFM \
-  "%*[^\"]\"%f\"%*\\D%l: %m,\"%f\"%*\\D%l: %m,%-G%f:%l: (Each undeclared identifier is reported only once,%-G%f:%l: for each function it appears in.),%-GIn file included from %f:%l:%c:,%-GIn file included from %f:%l:%c\\,,%-GIn file included from %f:%l:%c,%-GIn file included from %f:%l,%-G%*[ ]from %f:%l:%c,%-G%*[ ]from %f:%l:,%-G%*[ ]from %f:%l\\,,%-G%*[ ]from %f:%l,%f:%l:%c:%m,%f(%l):%m,%f:%l:%m,\"%f\"\\, line %l%*\\D%c%*[^ ] %m,%D%*\\a[%*\\d]: Entering directory %*[`']%f',%X%*\\a[%*\\d]: Leaving directory %*[`']%f',%D%*\\a: Entering directory %*[`']%f',%X%*\\a: Leaving directory %*[`']%f',%DMaking %*\\a in %f,%f|%l| %m"
+  "%*[^\"]\"%f\"%*\\D%l: %m,\"%f\"%*\\D%l: %m,%-Gg%\\?make[%*\\d]: *** [%f:%l:%m,%-Gg%\\?make: *** [%f:%l:%m,%-G%f:%l: (Each undeclared identifier is reported only once,%-G%f:%l: for each function it appears in.),%-GIn file included from %f:%l:%c:,%-GIn file included from %f:%l:%c\\,,%-GIn file included from %f:%l:%c,%-GIn file included from %f:%l,%-G%*[ ]from %f:%l:%c,%-G%*[ ]from %f:%l:,%-G%*[ ]from %f:%l\\,,%-G%*[ ]from %f:%l,%f:%l:%c:%m,%f(%l):%m,%f:%l:%m,\"%f\"\\, line %l%*\\D%c%*[^ ] %m,%D%*\\a[%*\\d]: Entering directory %*[`']%f',%X%*\\a[%*\\d]: Leaving directory %*[`']%f',%D%*\\a: Entering directory %*[`']%f',%X%*\\a: Leaving directory %*[`']%f',%DMaking %*\\a in %f,%f|%l| %m"
 #endif
 
 #define DFLT_GREPFORMAT "%f:%l:%m,%f:%l%m,%f  %l%m"
@@ -984,7 +985,7 @@ enum {
 typedef struct {
   // Pointer to the option variable.  The variable can be a long (numeric
   // option), an int (boolean option) or a char pointer (string option).
-  char *os_varp;
+  void *os_varp;
   int os_idx;
   int os_flags;
 
@@ -1047,19 +1048,19 @@ typedef enum {
 } idopt_T;
 
 typedef struct vimoption {
-  char *fullname;        // full option name
-  char *shortname;       // permissible abbreviation
-  uint32_t flags;               // see above
-  char *var;               // global option: pointer to variable;
-                           // window-local option: VAR_WIN;
-                           // buffer-local option: global value
-  idopt_T indir;                // global option: PV_NONE;
-                                // local option: indirect option index
-  // callback function to invoke after an option is modified to validate and
-  // apply the new value.
+  char *fullname;   // full option name
+  char *shortname;  // permissible abbreviation
+  uint32_t flags;   // see above
+  void *var;        // global option: pointer to variable;
+                    // window-local option: VAR_WIN;
+                    // buffer-local option: global value
+  idopt_T indir;    // global option: PV_NONE;
+                    // local option: indirect option index
+                    // callback function to invoke after an option is modified to validate and
+                    // apply the new value.
   opt_did_set_cb_T opt_did_set_cb;
-  char *def_val;         // default values for variable (neovim!!)
-  LastSet last_set;             // script in which the option was last set
+  void *def_val;     // default values for variable (neovim!!)
+  LastSet last_set;  // script in which the option was last set
 } vimoption_T;
 
 // The options that are local to a window or buffer have "indir" set to one of
@@ -1079,5 +1080,25 @@ typedef struct vimoption {
 // Options local to a window have a value local to a buffer and global to all
 // buffers.  Indicate this by setting "var" to VAR_WIN.
 #define VAR_WIN ((char *)-1)
+
+// Option value type
+typedef enum {
+  kOptValTypeNil = 0,
+  kOptValTypeBoolean,
+  kOptValTypeNumber,
+  kOptValTypeString,
+} OptValType;
+
+// Option value
+typedef struct {
+  OptValType type;
+
+  union {
+    // Vim boolean options are actually tri-states because they have a third "None" value.
+    TriState boolean;
+    Integer number;
+    String string;
+  } data;
+} OptVal;
 
 #endif  // NVIM_OPTION_DEFS_H

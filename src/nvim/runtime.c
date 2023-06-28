@@ -512,7 +512,7 @@ Array runtime_inspect(void)
   for (size_t i = 0; i < kv_size(path); i++) {
     SearchPathItem *item = &kv_A(path, i);
     Array entry = ARRAY_DICT_INIT;
-    ADD(entry, STRING_OBJ(cstr_to_string(item->path)));
+    ADD(entry, CSTR_TO_OBJ(item->path));
     ADD(entry, BOOLEAN_OBJ(item->after));
     if (item->has_lua != kNone) {
       ADD(entry, BOOLEAN_OBJ(item->has_lua == kTrue));
@@ -568,7 +568,7 @@ ArrayOf(String) runtime_get_named_common(bool lua, Array pat, bool all,
                                        item->path, pat_item.data.string.data);
         if (size < buf_len) {
           if (os_file_is_readable(buf)) {
-            ADD(rv, STRING_OBJ(cstr_to_string(buf)));
+            ADD(rv, CSTR_TO_OBJ(buf));
             if (!all) {
               goto done;
             }
@@ -1006,7 +1006,7 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
     xstrlcat(new_rtp, afterdir, new_rtp_capacity);
   }
 
-  set_option_value_give_err("rtp", 0L, new_rtp, 0);
+  set_option_value_give_err("rtp", CSTR_AS_OPTVAL(new_rtp), 0);
   xfree(new_rtp);
   retval = OK;
 
@@ -1770,7 +1770,7 @@ static FILE *fopen_noinh_readbin(char *filename)
   return fdopen(fd_tmp, READBIN);
 }
 
-/// Concatenate VimL line if it starts with a line continuation into a growarray
+/// Concatenate Vimscript line if it starts with a line continuation into a growarray
 /// (excluding the continuation chars and leading whitespace)
 ///
 /// @note Growsize of the growarray may be changed to speed up concatenations!
@@ -1926,8 +1926,8 @@ static void cmd_source_buffer(const exarg_T *const eap)
     .buf = ga.ga_data,
     .offset = 0,
   };
-  if (curbuf->b_fname
-      && path_with_extension(curbuf->b_fname, "lua")) {
+  if (strequal(curbuf->b_p_ft, "lua")
+      || (curbuf->b_fname && path_with_extension(curbuf->b_fname, "lua"))) {
     nlua_source_using_linegetter(get_str_line, (void *)&cookie, ":source (no file)");
   } else {
     source_using_linegetter((void *)&cookie, get_str_line, ":source (no file)");

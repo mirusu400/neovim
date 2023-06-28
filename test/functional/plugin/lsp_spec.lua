@@ -65,7 +65,7 @@ describe('LSP', function()
             vim.v.progpath, '-l', fake_lsp_code, test_name;
           };
           workspace_folders = {{
-              uri = 'file://' .. vim.loop.cwd(),
+              uri = 'file://' .. vim.uv.cwd(),
               name = 'test_folder',
           }};
         }
@@ -216,6 +216,34 @@ describe('LSP', function()
           dummy = 1,
         },
       })
+    end)
+
+    it("should set the client's offset_encoding when positionEncoding capability is supported", function()
+      clear()
+      exec_lua(create_server_definition)
+      local result = exec_lua([[
+        local server = _create_server({
+          capabilities = {
+            positionEncoding = "utf-8"
+          },
+        })
+
+        local client_id = vim.lsp.start({
+          name = 'dummy',
+          cmd = server.cmd,
+        })
+
+        if not client_id then
+          return 'vim.lsp.start did not return client_id'
+        end
+
+        local client = vim.lsp.get_client_by_id(client_id)
+        if not client then
+          return 'No client found with id ' .. client_id
+        end
+        return client.offset_encoding
+      ]])
+      eq('utf-8', result)
     end)
 
     it('should succeed with manual shutdown', function()
@@ -948,7 +976,7 @@ describe('LSP', function()
         test_name = "check_tracked_requests_cleared";
         on_init = function(_client)
           command('let g:requests = 0')
-          command('autocmd User LspRequest let g:requests+=1')
+          command('autocmd LspRequest * let g:requests+=1')
           client = _client
           client.request("slow_request")
           eq(1, eval('g:requests'))
@@ -1042,7 +1070,7 @@ describe('LSP', function()
           eq(full_kind, client.server_capabilities().textDocumentSync.change)
           eq(true, client.server_capabilities().textDocumentSync.openClose)
           exec_lua [[
-            assert(not lsp.buf_attach_client(BUFFER, TEST_RPC_CLIENT_ID), "Shouldn't attach twice")
+            assert(lsp.buf_attach_client(BUFFER, TEST_RPC_CLIENT_ID), "Already attached, returns true")
           ]]
         end;
         on_exit = function(code, signal)
@@ -1651,6 +1679,54 @@ describe('LSP', function()
         'foobar';
       }, buf_lines(1))
     end)
+    it('it restores marks', function()
+      local edits = {
+        make_edit(1, 0, 2, 5, "foobar");
+        make_edit(4, 0, 5, 0, "barfoo");
+      }
+      eq(true, exec_lua('return vim.api.nvim_buf_set_mark(1, "a", 2, 1, {})'))
+      exec_lua('vim.lsp.util.apply_text_edits(...)', edits, 1, "utf-16")
+      eq({
+        'First line of text';
+        'foobar line of text';
+        'Fourth line of text';
+        'barfoo';
+      }, buf_lines(1))
+      local mark = exec_lua('return vim.api.nvim_buf_get_mark(1, "a")')
+      eq({ 2, 1 }, mark)
+    end)
+
+    it('it restores marks to last valid col', function()
+      local edits = {
+        make_edit(1, 0, 2, 15, "foobar");
+        make_edit(4, 0, 5, 0, "barfoo");
+      }
+      eq(true, exec_lua('return vim.api.nvim_buf_set_mark(1, "a", 2, 10, {})'))
+      exec_lua('vim.lsp.util.apply_text_edits(...)', edits, 1, "utf-16")
+      eq({
+        'First line of text';
+        'foobarext';
+        'Fourth line of text';
+        'barfoo';
+      }, buf_lines(1))
+      local mark = exec_lua('return vim.api.nvim_buf_get_mark(1, "a")')
+      eq({ 2, 9 }, mark)
+    end)
+
+    it('it restores marks to last valid line', function()
+      local edits = {
+        make_edit(1, 0, 4, 5, "foobar");
+        make_edit(4, 0, 5, 0, "barfoo");
+      }
+      eq(true, exec_lua('return vim.api.nvim_buf_set_mark(1, "a", 4, 1, {})'))
+      exec_lua('vim.lsp.util.apply_text_edits(...)', edits, 1, "utf-16")
+      eq({
+        'First line of text';
+        'foobaro';
+      }, buf_lines(1))
+      local mark = exec_lua('return vim.api.nvim_buf_get_mark(1, "a")')
+      eq({ 2, 1 }, mark)
+    end)
 
     describe('cursor position', function()
       it('don\'t fix the cursor if the range contains the cursor', function()
@@ -2031,7 +2107,7 @@ describe('LSP', function()
         }
       }
       exec_lua('vim.lsp.util.apply_workspace_edit(...)', edit, 'utf-16')
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', tmpfile))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', tmpfile))
     end)
     it('Supports file creation in folder that needs to be created with CreateFile payload', function()
       local tmpfile = helpers.tmpname()
@@ -2047,7 +2123,7 @@ describe('LSP', function()
         }
       }
       exec_lua('vim.lsp.util.apply_workspace_edit(...)', edit, 'utf-16')
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', tmpfile))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', tmpfile))
     end)
     it('createFile does not touch file if it exists and ignoreIfExists is set', function()
       local tmpfile = helpers.tmpname()
@@ -2065,7 +2141,7 @@ describe('LSP', function()
         }
       }
       exec_lua('vim.lsp.util.apply_workspace_edit(...)', edit, 'utf-16')
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', tmpfile))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', tmpfile))
       eq('Dummy content', read_file(tmpfile))
     end)
     it('createFile overrides file if overwrite is set', function()
@@ -2085,7 +2161,7 @@ describe('LSP', function()
         }
       }
       exec_lua('vim.lsp.util.apply_workspace_edit(...)', edit, 'utf-16')
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', tmpfile))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', tmpfile))
       eq('', read_file(tmpfile))
     end)
     it('DeleteFile delete file and buffer', function()
@@ -2106,7 +2182,7 @@ describe('LSP', function()
         }
       }
       eq(true, pcall(exec_lua, 'vim.lsp.util.apply_workspace_edit(...)', edit, 'utf-16'))
-      eq(false, exec_lua('return vim.loop.fs_stat(...) ~= nil', tmpfile))
+      eq(false, exec_lua('return vim.uv.fs_stat(...) ~= nil', tmpfile))
       eq(false, exec_lua('return vim.api.nvim_buf_is_loaded(vim.fn.bufadd(...))', tmpfile))
     end)
     it('DeleteFile fails if file does not exist and ignoreIfNotExists is false', function()
@@ -2125,7 +2201,7 @@ describe('LSP', function()
         }
       }
       eq(false, pcall(exec_lua, 'vim.lsp.util.apply_workspace_edit(...)', edit))
-      eq(false, exec_lua('return vim.loop.fs_stat(...) ~= nil', tmpfile))
+      eq(false, exec_lua('return vim.uv.fs_stat(...) ~= nil', tmpfile))
     end)
   end)
 
@@ -2137,8 +2213,8 @@ describe('LSP', function()
       local prefix = 'foo'
       local completion_list = {
         -- resolves into label
-        { label='foobar', sortText="a" },
-        { label='foobar', sortText="b", textEdit={} },
+        { label = 'foobar', sortText = 'a', documentation = 'documentation' },
+        { label = 'foobar', sortText = 'b', documentation = { value = 'documentation' }, textEdit = {} },
         -- resolves into insertText
         { label='foocar', sortText="c", insertText='foobar' },
         { label='foocar', sortText="d", insertText='foobar', textEdit={} },
@@ -2157,17 +2233,17 @@ describe('LSP', function()
       }
       local completion_list_items = {items=completion_list}
       local expected = {
-        { abbr = 'foobar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label = 'foobar', sortText="a" } } } } },
-        { abbr = 'foobar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foobar', sortText="b", textEdit={} } } }  } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="c", insertText='foobar' } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="d", insertText='foobar', textEdit={} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="e", insertText='foodar', textEdit={newText='foobar'} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="f", textEdit={newText='foobar'} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foobar(place holder, more ...holder{})', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="g", insertText='foodar', insertTextFormat=2, textEdit={newText='foobar(${1:place holder}, ${2:more ...holder{\\}})'} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foodar(var1 typ1, var2 *typ2) {}', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="h", insertText='foodar(${1:var1} typ1, ${2:var2} *typ2) {$0\\}', insertTextFormat=2, textEdit={} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foodar(var1 typ2 tail) {}', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="i", insertText='foodar(${1:var1 ${2|typ2,typ3|} ${3:tail}}) {$0\\}', insertTextFormat=2, textEdit={} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foodar()', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="j", insertText='foodar()${0}', insertTextFormat=2, textEdit={} } } } } },
-        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, info = ' ', kind = 'Unknown', menu = '', word = 'foodar(${1:var1})', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="k", insertText='foodar(${1:var1})', insertTextFormat=1, textEdit={} } } } } },
+        { abbr = 'foobar', dup = 1, empty = 1, icase = 1, info = 'documentation', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label = 'foobar', sortText="a",  documentation = 'documentation' } } } } },
+        { abbr = 'foobar', dup = 1, empty = 1, icase = 1, info = 'documentation', kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foobar', sortText="b", textEdit={},documentation = { value = 'documentation' } } } }  } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="c", insertText='foobar' } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="d", insertText='foobar', textEdit={} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="e", insertText='foodar', textEdit={newText='foobar'} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foobar', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="f", textEdit={newText='foobar'} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foobar(place holder, more ...holder{})', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="g", insertText='foodar', insertTextFormat=2, textEdit={newText='foobar(${1:place holder}, ${2:more ...holder{\\}})'} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foodar(var1 typ1, var2 *typ2) {}', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="h", insertText='foodar(${1:var1} typ1, ${2:var2} *typ2) {$0\\}', insertTextFormat=2, textEdit={} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foodar(var1 typ2 tail) {}', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="i", insertText='foodar(${1:var1 ${2|typ2,typ3|} ${3:tail}}) {$0\\}', insertTextFormat=2, textEdit={} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foodar()', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="j", insertText='foodar()${0}', insertTextFormat=2, textEdit={} } } } } },
+        { abbr = 'foocar', dup = 1, empty = 1, icase = 1, kind = 'Unknown', menu = '', word = 'foodar(${1:var1})', user_data = { nvim = { lsp = { completion_item = { label='foocar', sortText="k", insertText='foodar(${1:var1})', insertTextFormat=1, textEdit={} } } } } },
       }
 
       eq(expected, exec_lua([[return vim.lsp.util.text_document_completion_list_to_complete_items(...)]], completion_list, prefix))
@@ -2195,9 +2271,9 @@ describe('LSP', function()
         return vim.api.nvim_buf_get_lines(bufnr, 0, -1, true)
       ]], old, new)
       eq({'Test content'}, lines)
-      local exists = exec_lua('return vim.loop.fs_stat(...) ~= nil', old)
+      local exists = exec_lua('return vim.uv.fs_stat(...) ~= nil', old)
       eq(false, exists)
-      exists = exec_lua('return vim.loop.fs_stat(...) ~= nil', new)
+      exists = exec_lua('return vim.uv.fs_stat(...) ~= nil', new)
       eq(true, exists)
       os.remove(new)
     end)
@@ -2238,9 +2314,9 @@ describe('LSP', function()
 	return vim.fn.bufloaded(oldbufnr)
       ]], old_dir, new_dir, pathsep)
       eq(0, lines)
-      eq(false, exec_lua('return vim.loop.fs_stat(...) ~= nil', old_dir))
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', new_dir))
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', new_dir .. pathsep .. file))
+      eq(false, exec_lua('return vim.uv.fs_stat(...) ~= nil', old_dir))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', new_dir))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', new_dir .. pathsep .. file))
       eq('Test content', read_file(new_dir .. pathsep .. file))
 
       os.remove(new_dir)
@@ -2258,7 +2334,7 @@ describe('LSP', function()
         vim.lsp.util.rename(old, new, { ignoreIfExists = true })
       ]], old, new)
 
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', old))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', old))
       eq('New file', read_file(new))
 
       exec_lua([[
@@ -2268,7 +2344,7 @@ describe('LSP', function()
         vim.lsp.util.rename(old, new, { overwrite = false })
       ]], old, new)
 
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', old))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', old))
       eq('New file', read_file(new))
     end)
     it('Does override target if overwrite is true', function()
@@ -2283,8 +2359,8 @@ describe('LSP', function()
         vim.lsp.util.rename(old, new, { overwrite = true })
       ]], old, new)
 
-      eq(false, exec_lua('return vim.loop.fs_stat(...) ~= nil', old))
-      eq(true, exec_lua('return vim.loop.fs_stat(...) ~= nil', new))
+      eq(false, exec_lua('return vim.uv.fs_stat(...) ~= nil', old))
+      eq(true, exec_lua('return vim.uv.fs_stat(...) ~= nil', new))
       eq('Old file\n', read_file(new))
     end)
   end)
@@ -3154,9 +3230,10 @@ describe('LSP', function()
           eq(0, signal, "exit signal")
         end;
         on_handler = function(err, result, ctx)
-          -- Don't compare & assert params, they're not relevant for the testcase
+          -- Don't compare & assert params and version, they're not relevant for the testcase
           -- This allows us to be lazy and avoid declaring them
           ctx.params = nil
+          ctx.version = nil
 
           eq(table.remove(test.expected_handlers), {err, result, ctx}, "expected handler")
           if ctx.method == 'start' then
@@ -3238,6 +3315,7 @@ describe('LSP', function()
         end,
         on_handler = function(err, result, ctx)
           ctx.params = nil -- don't compare in assert
+          ctx.version = nil
           eq(table.remove(expected_handlers), { err, result, ctx })
           if ctx.method == 'start' then
             exec_lua([[
@@ -3279,22 +3357,22 @@ describe('LSP', function()
                 vim.lsp.commands['executed_preferred'] = function()
                 end
               end
-              vim.lsp.commands['quickfix_command'] = function(cmd)
-                vim.lsp.commands['executed_quickfix'] = function()
+              vim.lsp.commands['type_annotate_command'] = function(cmd)
+                vim.lsp.commands['executed_type_annotate'] = function()
                 end
               end
               local bufnr = vim.api.nvim_get_current_buf()
               vim.lsp.buf_attach_client(bufnr, TEST_RPC_CLIENT_ID)
               vim.lsp.buf.code_action({ filter = function(a) return a.isPreferred end, apply = true, })
               vim.lsp.buf.code_action({
-                  -- expect to be returned actions 'quickfix' and 'quickfix.foo'
-                  context = { only = {'quickfix'}, },
+                  -- expect to be returned actions 'type-annotate' and 'type-annotate.foo'
+                  context = { only = { 'type-annotate' }, },
                   apply = true,
                   filter = function(a)
-                      if a.kind == 'quickfix.foo' then
-                        vim.lsp.commands['filtered_quickfix_foo'] = function() end
+                      if a.kind == 'type-annotate.foo' then
+                        vim.lsp.commands['filtered_type_annotate_foo'] = function() end
                         return false
-                      elseif a.kind == 'quickfix' then
+                      elseif a.kind == 'type-annotate' then
                         return true
                       else
                         assert(nil, 'unreachable')
@@ -3304,8 +3382,8 @@ describe('LSP', function()
             ]])
           elseif ctx.method == 'shutdown' then
             eq('function', exec_lua[[return type(vim.lsp.commands['executed_preferred'])]])
-            eq('function', exec_lua[[return type(vim.lsp.commands['filtered_quickfix_foo'])]])
-            eq('function', exec_lua[[return type(vim.lsp.commands['executed_quickfix'])]])
+            eq('function', exec_lua[[return type(vim.lsp.commands['filtered_type_annotate_foo'])]])
+            eq('function', exec_lua[[return type(vim.lsp.commands['executed_type_annotate'])]])
             client.stop()
           end
         end
@@ -3669,7 +3747,7 @@ describe('LSP', function()
   describe('cmd', function()
     it('can connect to lsp server via rpc.connect', function()
       local result = exec_lua [[
-        local uv = vim.loop
+        local uv = vim.uv
         local server = uv.new_tcp()
         local init = nil
         server:bind('127.0.0.1', 0)
@@ -3697,7 +3775,7 @@ describe('LSP', function()
   describe('handlers', function()
     it('handler can return false as response', function()
       local result = exec_lua [[
-        local uv = vim.loop
+        local uv = vim.uv
         local server = uv.new_tcp()
         local messages = {}
         local responses = {}
@@ -3762,6 +3840,96 @@ describe('LSP', function()
         }
       }
       eq(expected, result)
+    end)
+  end)
+
+  describe('#dynamic vim.lsp._dynamic', function()
+    it('supports dynamic registration', function()
+      local root_dir = helpers.tmpname()
+      os.remove(root_dir)
+      mkdir(root_dir)
+      local tmpfile = root_dir .. '/dynamic.foo'
+      local file = io.open(tmpfile, 'w')
+      file:close()
+
+      exec_lua(create_server_definition)
+      local result = exec_lua([[
+        local root_dir, tmpfile = ...
+
+        local server = _create_server()
+        local client_id = vim.lsp.start({
+          name = 'dynamic-test',
+          cmd = server.cmd,
+          root_dir = root_dir,
+          capabilities = {
+            textDocument = {
+              formatting = {
+                dynamicRegistration = true,
+              },
+              rangeFormatting = {
+                dynamicRegistration = true,
+              },
+            },
+          },
+        })
+
+        local expected_messages = 2 -- initialize, initialized
+
+        vim.lsp.handlers['client/registerCapability'](nil, {
+          registrations = {
+            {
+              id = 'formatting',
+              method = 'textDocument/formatting',
+              registerOptions = {
+                documentSelector = {{
+                  pattern = root_dir .. '/*.foo',
+                }},
+              },
+            },
+          },
+        }, { client_id = client_id })
+
+        vim.lsp.handlers['client/registerCapability'](nil, {
+          registrations = {
+            {
+              id = 'range-formatting',
+              method = 'textDocument/rangeFormatting',
+            },
+          },
+        }, { client_id = client_id })
+
+        vim.lsp.handlers['client/registerCapability'](nil, {
+          registrations = {
+            {
+              id = 'completion',
+              method = 'textDocument/completion',
+            },
+          },
+        }, { client_id = client_id })
+
+        local result = {}
+        local function check(method, fname)
+          local bufnr = fname and vim.fn.bufadd(fname) or nil
+          local client = vim.lsp.get_client_by_id(client_id)
+          result[#result + 1] = {method = method, fname = fname, supported = client.supports_method(method, {bufnr = bufnr})}
+        end
+
+
+        check("textDocument/formatting")
+        check("textDocument/formatting", tmpfile)
+        check("textDocument/rangeFormatting")
+        check("textDocument/rangeFormatting", tmpfile)
+        check("textDocument/completion")
+
+        return result
+      ]], root_dir, tmpfile)
+
+      eq(5, #result)
+      eq({method = 'textDocument/formatting', supported = false}, result[1])
+      eq({method = 'textDocument/formatting', supported = true, fname = tmpfile}, result[2])
+      eq({method = 'textDocument/rangeFormatting', supported = true}, result[3])
+      eq({method = 'textDocument/rangeFormatting', supported = true, fname = tmpfile}, result[4])
+      eq({method = 'textDocument/completion', supported = false}, result[5])
     end)
   end)
 
@@ -4274,3 +4442,4 @@ describe('LSP', function()
     end)
   end)
 end)
+
